@@ -12,6 +12,7 @@ int main(){
     size_t longitudEntrada = 50;
     char * input = (char *) malloc(sizeof(char)*longitudEntrada);
     char * salida = "exit";
+    char * cd = "cd";
     char * salto = "\n";
     char *argumentos[NUMEROARG];
     do
@@ -28,9 +29,14 @@ int main(){
         {
             char * orden = argumentos[0];
             if(strcmp(orden,salida)==0) exit(0);
-            if (fork()==0)
+            if(strcmp(orden,cd)==0){
+                char * destino = argumentos[1];
+                if(chdir(destino)==0) continue;
+                else printf("ha ocurrido un error al cambiar de directorio\n");//TODO gestionar errores
+            }
+            else if (fork()==0)
             {
-                execvp(orden,argumentos);
+                execvp(orden,argumentos);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
                 kill(getpid(),SIGTERM);
             }
             else
