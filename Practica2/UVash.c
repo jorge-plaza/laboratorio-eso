@@ -5,8 +5,11 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define NUMEROARG 10
+void RemoveSpaces(char* source);
 
 int main(){
     size_t longitudEntrada = 50;
@@ -54,17 +57,44 @@ int main(){
         else
         {
             //Se ha encontrado la redireccion hay que guardar el fichero
+            RemoveSpaces(cadenaSep[1]);
             char * pathFichero = cadenaSep[1];
             char * argumentos[NUMEROARG];
             char * aux2 = cadenaSep[0];
             for (i = 0; i < NUMEROARG && (argumentos[i] = strsep(&aux2, " ")) != NULL; i++);
-            FILE * fichero = fopen(pathFichero,"w");
-        }
-        
-        
-        //for (int c = 0; c < i; c++) printf(" arg %d : [%s]\n", c, argumentos[c]);
-        
+            char * orden = argumentos[0];
+            argumentos[strlen(*argumentos)]='\0';
+            int fdout = open(pathFichero,O_WRONLY | O_CREAT | O_TRUNC, 0600);
+            if(strcmp(orden,salida)==0) exit(0);
+                if(strcmp(orden,cd)==0){
+                    char * destino = argumentos[1];
+                    if(chdir(destino)==0) continue;
+                    else printf("ha ocurrido un error al cambiar de directorio\n");//TODO gestionar errores
+            }
+            switch (fork()) {
+            case -1:
+                    //error;
+            case 0:
+                dup2(fdout, STDOUT_FILENO);
+                close(fdout);
+                execvp(argumentos[0],argumentos);
+                kill(getpid(),SIGTERM);
+                //TODO FALTARIA EL WAIT?
+            }
+        }        
     } while (strcmp(salida,input));
-
     exit(0);
+}
+
+void RemoveSpaces(char* source)
+{
+  char* i = source;
+  char* j = source;
+  while(*j != 0)
+  {
+    *i = *j++;
+    if(*i != ' ')
+      i++;
+  }
+  *i = 0;
 }
