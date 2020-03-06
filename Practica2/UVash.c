@@ -65,17 +65,12 @@ int main(){
             char * orden = argumentos[0];
             argumentos[strlen(*argumentos)-1]='\0';
             int fdout = open(pathFichero,O_WRONLY | O_CREAT | O_TRUNC, 0600);
-            if(strcmp(orden,salida)==0) exit(0);
-                if(strcmp(orden,cd)==0){
-                    char * destino = argumentos[1];
-                    if(chdir(destino)==0) continue;
-                    else printf("ha ocurrido un error al cambiar de directorio\n");//TODO gestionar errores
-            }
             switch (fork()) {
             case -1:
                     //error;
             case 0:
                 dup2(fdout, STDOUT_FILENO);
+                dup2(fdout, STDERR_FILENO);
                 close(fdout);
                 execvp(argumentos[0],argumentos);
                 kill(getpid(),SIGTERM);
