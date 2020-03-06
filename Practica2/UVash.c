@@ -14,7 +14,7 @@ int main(){
     char * salida = "exit";
     char * cd = "cd";
     char * salto = "\n";
-    char *argumentos[NUMEROARG];
+    char *cadenaSep[NUMEROARG];
     do
     {
         printf("UVash> ");
@@ -23,29 +23,46 @@ int main(){
         int i;
         //Tienes que crear un vector auxiliar ya que strsep() te modifica el vector que le pasas por agumentos
         char * aux = input;
-        for (i = 0; i < NUMEROARG && (argumentos[i] = strsep(&aux, " ")) != NULL; i++);
-        //for (int c = 0; c < i; c++) printf(" arg %d : [%s]\n", c, argumentos[c]);
-        if (strcmp(argumentos[0],salto))
+        for (i = 0; i < NUMEROARG && (cadenaSep[i] = strsep(&aux, ">")) != NULL; i++);
+        if (cadenaSep[1]==NULL)
         {
-            char * orden = argumentos[0];
-            if(strcmp(orden,salida)==0) exit(0);
-            if(strcmp(orden,cd)==0){
-                char * destino = argumentos[1];
-                if(chdir(destino)==0) continue;
-                else printf("ha ocurrido un error al cambiar de directorio\n");//TODO gestionar errores
-            }
-            else if (fork()==0)
+            //Si no se ha introducido la redireccion hay que separar los argumetos
+            char * argumentos[NUMEROARG];
+            char * aux2 = cadenaSep[0];
+            for (i = 0; i < NUMEROARG && (argumentos[i] = strsep(&aux2, " ")) != NULL; i++);
+            if (strcmp(argumentos[0],salto))
             {
-                execvp(orden,argumentos);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
-                kill(getpid(),SIGTERM);
-            }
-            else
-            {
-                int status;
-                wait(&status);
-            }
-            
+                char * orden = argumentos[0];
+                if(strcmp(orden,salida)==0) exit(0);
+                if(strcmp(orden,cd)==0){
+                    char * destino = argumentos[1];
+                    if(chdir(destino)==0) continue;
+                    else printf("ha ocurrido un error al cambiar de directorio\n");//TODO gestionar errores
+                }
+                else if (fork()==0)
+                {
+                    execvp(orden,argumentos);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
+                    kill(getpid(),SIGTERM);
+                }
+                else
+                {
+                    int status;
+                    wait(&status);
+                }
+            }   
         }
+        else
+        {
+            //Se ha encontrado la redireccion hay que guardar el fichero
+            char * pathFichero = cadenaSep[1];
+            char * argumentos[NUMEROARG];
+            char * aux2 = cadenaSep[0];
+            for (i = 0; i < NUMEROARG && (argumentos[i] = strsep(&aux2, " ")) != NULL; i++);
+            FILE * fichero = fopen(pathFichero,"w");
+        }
+        
+        
+        //for (int c = 0; c < i; c++) printf(" arg %d : [%s]\n", c, argumentos[c]);
         
     } while (strcmp(salida,input));
 
