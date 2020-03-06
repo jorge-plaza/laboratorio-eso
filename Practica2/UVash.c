@@ -72,7 +72,7 @@ int main(){
                 dup2(fdout, STDOUT_FILENO);
                 dup2(fdout, STDERR_FILENO);
                 close(fdout);
-                execvp(argumentos[0],argumentos);
+                execvp(orden,argumentos);
                 kill(getpid(),SIGTERM);
                 //TODO FALTARIA EL WAIT?
             }
