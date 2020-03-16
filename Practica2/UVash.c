@@ -63,7 +63,7 @@ int main(){
             char * aux2 = cadenaSep[0];
             for (i = 0; i < NUMEROARG && (argumentos[i] = strsep(&aux2, " ")) != NULL; i++);
             char * orden = argumentos[0];
-            argumentos[strlen(*argumentos)-1]='\0';
+            argumentos[strlen(*argumentos)]='\0';
             int fdout = open(pathFichero,O_WRONLY | O_CREAT | O_TRUNC, 0600);
             switch (fork()) {
             case -1:
