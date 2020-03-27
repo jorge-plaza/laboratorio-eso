@@ -13,6 +13,8 @@ void RemoveSpaces(char* source);
 void separarCadena(char * input,char ** cadenaSep,char * delimitador);
 void sinRedireccion(char * input,char ** cadenaSep);
 void strip(char *s);
+char * stripInicio(char *s);
+char * stripFin(char *s);
 int numChar(char *arr[]);
 
 int main(int argc, char **argv){
@@ -25,23 +27,25 @@ int main(int argc, char **argv){
     char error_message[30] = "An error has occurred\n";
     if(argc>1){
         //MODO BATCH
-        if(argc!=2) fprintf(stderr, "%s", error_message);
-        FILE *fr = fopen(argv[1],"r");
-        if(fr==NULL){
-            printf("UVazip: cannot open file\n");
+        if(argc!=2) {
+            fprintf(stderr, "%s", error_message);
             exit(1);
         }
-        int fallo = getline(&input,&longitudEntrada,fr);
-        if (fallo==-1)
+        FILE *fr = fopen(argv[1],"r");
+        if(fr==NULL){
+            fprintf(stderr, "%s", error_message);
+            exit(1);
+        }
+        int fallo = getline(&input,&longitudEntrada,fr);        if (fallo==-1)
         {
+            fprintf(stderr, "%s", error_message);
             exit(1);
         }
         do
         {
             input[strcspn(input, "\n")]='\0';
             separarCadena(input,cadenaSep,">");
-            if (cadenaSep[1]==NULL)
-            {
+            if (cadenaSep[1]==NULL){
                 sinRedireccion(input,cadenaSep);
             }
             //HAY REDIRECCION
@@ -239,30 +243,35 @@ void sinRedireccion(char * input,char ** cadenaSep){
     char * salida = "exit";
     char error_message[30] = "An error has occurred\n";
     input[strcspn(input, "\n")]='\0';
+    input = stripInicio(input);
+    input = stripFin(input);
     separarCadena(input,cadenaSep," ");
     if (strcmp(cadenaSep[0],salto)){
-        char * orden = cadenaSep[0];
-        int numElementos = numChar(cadenaSep);
-        //printf("elementos cadena: %d\n",numChar(cadenaSep));
-        cadenaSep[numElementos]='\0';
-        if(strcmp(orden,salida)==0){
-            if(cadenaSep[1]!=NULL)fprintf(stderr, "%s", error_message);
-            exit(0);
-        } 
-        if(strcmp(orden,cd)==0){
-            char * destino = cadenaSep[1];
-            if(chdir(destino)!=0)fprintf(stderr, "%s", error_message);
-        }
-        else if (fork()==0)
-        {
-            execvp(orden,cadenaSep);
-            fprintf(stderr, "%s", error_message);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
-            kill(getpid(),SIGTERM);
-        }
-        else
-        {
-            int status;
-            wait(&status);
+        RemoveSpaces(cadenaSep[0]);
+        if((int)*cadenaSep[0]!=0){
+            char * orden = cadenaSep[0];
+            int numElementos = numChar(cadenaSep);
+            //printf("elementos cadena: %d\n",numChar(cadenaSep));
+            cadenaSep[numElementos]='\0';
+            if(strcmp(orden,salida)==0){
+                if(cadenaSep[1]!=NULL)fprintf(stderr, "%s", error_message);
+                exit(0);
+            } 
+            if(strcmp(orden,cd)==0){
+                char * destino = cadenaSep[1];
+                if(chdir(destino)!=0)fprintf(stderr, "%s", error_message);
+            }
+            else if (fork()==0)
+            {
+                execvp(orden,cadenaSep);
+                fprintf(stderr, "%s", error_message);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
+                kill(getpid(),SIGTERM);
+            }
+            else
+            {
+                int status;
+                wait(&status);
+            }
         }
     }
 }
@@ -276,6 +285,30 @@ void strip(char *s) {
         }
     }
     *p2 = '\0';
+}
+char * stripInicio(char *s){
+    //char *p2 = s;
+    while(*s == ' ') {
+        if(*s != '\t' && *s != ' ') {
+            //*p2++ = *s++;
+        } else {
+            ++s;
+        }
+    }
+    return s;
+    //char *p2 = s;
+}
+char * stripFin(char *s){
+    char * ps = strchr(s,'\0');
+    int contador=0;
+    while (*ps == ' ' || *ps == '\0')
+    {
+        --ps;
+        contador++;
+    }
+    ps+=1;
+    *ps='\0';
+    return s;
 }
 int numChar(char *arr[]){
     int counter=0;
