@@ -18,6 +18,19 @@ char * stripFin(char *s);
 int numChar(char *arr[]);
 
 int main(int argc, char **argv){
+    //PRUBA EN PARALELO
+    /*
+    for (size_t i = 0; i < 4; i++)
+    {
+        if (fork()==0)
+        {
+            printf("[son] pid %d from [parent] pid %d\n",getpid(),getppid()); 
+            exit(0); 
+        }
+    }
+    for(int i=0;i<4;i++)wait(NULL);
+    printf("han terminado todos");
+    exit(0);*/
     size_t longitudEntrada = 50;
     char * input = (char *) malloc(sizeof(char)*longitudEntrada);
     char * salida = "exit";
@@ -44,114 +57,136 @@ int main(int argc, char **argv){
         do
         {
             input[strcspn(input, "\n")]='\0';
-            separarCadena(input,cadenaSep,">");
-            if (cadenaSep[1]==NULL){
-                sinRedireccion(input,cadenaSep);
+            separarCadena(input, cadenaSep, "&");
+            if ((int)*cadenaSep[0]==0 && (int)*cadenaSep[1]==0)
+            {
+                fprintf(stderr, "%s", error_message);
+                continue;
             }
-            //HAY REDIRECCION
-            else{
-                if (cadenaSep[1][0]==10 || cadenaSep[1][0]==0)
-                {
-                    fprintf(stderr, "%s", error_message);
-                    continue;
+            if(cadenaSep[1]==NULL){
+                separarCadena(input,cadenaSep,">");
+                if (cadenaSep[1]==NULL){
+                    sinRedireccion(input,cadenaSep);
                 }
-                char * trasR[NUMEROARG];
-                separarCadena(cadenaSep[1],trasR," ");
-                char * pathFichero;
-                char ** punteroSig = &trasR[2];
-                char ** siguienteComando = (char**)malloc(sizeof(char)*NUMEROARG);
-                if (trasR[0][0]==0)//HAY UN ESPACIO DELANTE
-                {
-                    pathFichero = trasR[1];
-                    if(trasR[2]!=NULL){
-                        int iterador =0;
-                        while (*punteroSig!=NULL)
-                        {
-                            *siguienteComando=*punteroSig;
-                            punteroSig++;
-                            siguienteComando++;
-                            iterador++;
+                //HAY REDIRECCION
+                else{
+                    if (cadenaSep[1][0]==10 || cadenaSep[1][0]==0)
+                    {
+                        fprintf(stderr, "%s", error_message);
+                        continue;
+                    }
+                    char * trasR[NUMEROARG];
+                    separarCadena(cadenaSep[1],trasR," ");
+                    char * pathFichero;
+                    char ** punteroSig = &trasR[2];
+                    char ** siguienteComando = (char**)malloc(sizeof(char)*NUMEROARG);
+                    if (trasR[0][0]==0)//HAY UN ESPACIO DELANTE
+                    {
+                        pathFichero = trasR[1];
+                        if(trasR[2]!=NULL){
+                            int iterador =0;
+                            while (*punteroSig!=NULL)
+                            {
+                                *siguienteComando=*punteroSig;
+                                punteroSig++;
+                                siguienteComando++;
+                                iterador++;
+                            }
+                            for (size_t i = 0; i < iterador; i++)
+                            {
+                                //DECREMENTO PUNTEROS PARA QUE APUNTEN AL INICIO
+                                punteroSig--;
+                                siguienteComando--;
+                            }
                         }
-                        for (size_t i = 0; i < iterador; i++)
-                        {
-                            //DECREMENTO PUNTEROS PARA QUE APUNTEN AL INICIO
-                            punteroSig--;
-                            siguienteComando--;
+                    }else
+                    {
+                        pathFichero = trasR[0];
+                        if(trasR[1]!=NULL){
+                            int iterador =0;
+                            while (*punteroSig!=NULL)
+                            {
+                                *siguienteComando=*punteroSig;
+                                punteroSig++;
+                                siguienteComando++;
+                                iterador++;
+                            }
+                            for (size_t i = 0; i < iterador; i++)
+                            {
+                                //DECREMENTO PUNTEROS PARA QUE APUNTEN AL INICIO
+                                punteroSig--;
+                                siguienteComando--;
+                            }
                         }
                     }
-                }else
-                {
-                    pathFichero = trasR[0];
-                    if(trasR[1]!=NULL){
-                        int iterador =0;
-                        while (*punteroSig!=NULL)
-                        {
-                            *siguienteComando=*punteroSig;
-                            punteroSig++;
-                            siguienteComando++;
-                            iterador++;
-                        }
-                        for (size_t i = 0; i < iterador; i++)
-                        {
-                            //DECREMENTO PUNTEROS PARA QUE APUNTEN AL INICIO
-                            punteroSig--;
-                            siguienteComando--;
-                        }
-                    }
-                }
-                //RemoveSpaces(pathFichero);
-                strip(pathFichero);
-                input = cadenaSep[0];
-                separarCadena(input,cadenaSep," ");
-                char * orden;
-                if((int)*cadenaSep[0]!=0)orden = cadenaSep[0];
-                else{fprintf(stderr, "%s", error_message); continue;}
-                //printf("num (%ld)\n",strlen(*cadenaSep));//TODO QUITAR EL ESPACIO SI METE UN ARGUMENTO
-                //printf("cadenaSep (%d)\n",(int)*cadenaSep[0]);
-                //cadenaSep[strlen(*cadenaSep)]=NULL;
-                
-                int numElementos = numChar(cadenaSep);
-                cadenaSep[numElementos-1] = NULL;
-                pid_t pid;
-                if((pid = fork())<0){
-                    fprintf(stderr, "%s", error_message);
-                    exit(1);
-                }
-                else if(pid==0){
-                    int fdout = open(pathFichero,O_WRONLY | O_CREAT | O_TRUNC, 0777);
-                    if(fdout==-1) exit(1);
-                    int test = 0;
-                    int test2 = 0;
-                    test = dup2(fdout, STDOUT_FILENO);
-                    test2 = dup2(fdout, STDERR_FILENO);
-                    //test = fcntl(1, F_DUPFD, fdout);
-                    if (test==-1 || test2==-1){
+                    //RemoveSpaces(pathFichero);
+                    strip(pathFichero);
+                    input = cadenaSep[0];
+                    separarCadena(input,cadenaSep," ");
+                    char * orden;
+                    if((int)*cadenaSep[0]!=0)orden = cadenaSep[0];
+                    else{fprintf(stderr, "%s", error_message); continue;}
+                    //printf("num (%ld)\n",strlen(*cadenaSep));//TODO QUITAR EL ESPACIO SI METE UN ARGUMENTO
+                    //printf("cadenaSep (%d)\n",(int)*cadenaSep[0]);
+                    //cadenaSep[strlen(*cadenaSep)]=NULL;
+                    
+                    int numElementos = numChar(cadenaSep);
+                    cadenaSep[numElementos-1] = NULL;
+                    pid_t pid;
+                    if((pid = fork())<0){
+                        fprintf(stderr, "%s", error_message);
                         exit(1);
                     }
-                    close(fdout);
-                    execvp(orden,cadenaSep);
-                    kill(getpid(),SIGTERM);
-                }else{
-                    int status;
-                    while (wait(&status)!=pid){}
-                }
-                if (*siguienteComando!=NULL)
-                {
-                    //TODO HACER BIEN EJECUTAR EL SIGUIENTE COMANDO
-                    orden=*siguienteComando;
-                    if (fork()==0)
-                    {
-                        execvp(orden,siguienteComando);
-                        fprintf(stderr, "%s", error_message);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
+                    else if(pid==0){
+                        int fdout = open(pathFichero,O_WRONLY | O_CREAT | O_TRUNC, 0777);
+                        if(fdout==-1) exit(1);
+                        int test = 0;
+                        int test2 = 0;
+                        test = dup2(fdout, STDOUT_FILENO);
+                        test2 = dup2(fdout, STDERR_FILENO);
+                        //test = fcntl(1, F_DUPFD, fdout);
+                        if (test==-1 || test2==-1){
+                            exit(1);
+                        }
+                        close(fdout);
+                        execvp(orden,cadenaSep);
                         kill(getpid(),SIGTERM);
-                    }
-                    else
-                    {
+                    }else{
                         int status;
-                        wait(&status);
+                        while (wait(&status)!=pid){}
+                    }
+                    if (*siguienteComando!=NULL)
+                    {
+                        //TODO HACER BIEN EJECUTAR EL SIGUIENTE COMANDO
+                        orden=*siguienteComando;
+                        if (fork()==0)
+                        {
+                            execvp(orden,siguienteComando);
+                            fprintf(stderr, "%s", error_message);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
+                            kill(getpid(),SIGTERM);
+                        }
+                        else
+                        {
+                            int status;
+                            wait(&status);
+                        }
                     }
                 }
             }
+            //HAY COMANDO PARALELO
+            else
+            {
+                int numComandos = numChar(cadenaSep);
+                int i;
+                char *comando;
+                char * cadenaSepParalel[NUMEROARG];
+                for(i=0;i<numComandos;i++){
+                    comando=cadenaSep[i];
+                    sinRedireccion(comando,cadenaSepParalel);
+                    //printf("comando en %s\n",cadenaSep[i]);
+                }
+            }
+            
         } while (getline(&input,&longitudEntrada,fr)!=-1);
         exit(0);
     }
