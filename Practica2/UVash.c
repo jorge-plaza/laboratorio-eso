@@ -19,19 +19,6 @@ char * stripFin(char *s);
 int numChar(char *arr[]);
 
 int main(int argc, char **argv){
-    //PRUBA EN PARALELO
-    /*
-    for (size_t i = 0; i < 4; i++)
-    {
-        if (fork()==0)
-        {
-            printf("[son] pid %d from [parent] pid %d\n",getpid(),getppid()); 
-            exit(0); 
-        }
-    }
-    for(int i=0;i<4;i++)wait(NULL);
-    printf("han terminado todos");
-    exit(0);*/
     size_t longitudEntrada = 50;
     char * input = (char *) malloc(sizeof(char)*longitudEntrada);
     char * salida = "exit";
@@ -50,8 +37,8 @@ int main(int argc, char **argv){
             fprintf(stderr, "%s", error_message);
             exit(1);
         }
-        int fallo = getline(&input,&longitudEntrada,fr);        if (fallo==-1)
-        {
+        int fallo = getline(&input,&longitudEntrada,fr);        
+        if (fallo==-1){
             fprintf(stderr, "%s", error_message);
             exit(1);
         }
@@ -79,17 +66,18 @@ int main(int argc, char **argv){
             {
                 int numComandos = numChar(cadenaSep);
                 int i;
-                char *comando;
+                char *comando=(char*)malloc(sizeof(char)*255);
                 char * cadenaSepParalel[NUMEROARG];
                 for(i=0;i<numComandos;i++){
-                    comando=cadenaSep[i];
-                    /*
-                    separarCadena(comando,cadenaSepParalel,">");
-                    if (cadenaSepParalel)
-                    {
+                    strcpy(comando,cadenaSep[i]);
+                    strcpy(input,cadenaSep[i]);
+                    separarCadena(input,cadenaSepParalel,">");
+                    if (cadenaSepParalel[1]==NULL){
+                        sinRedireccion(comando,cadenaSepParalel);
                     }
-                    */
-                    sinRedireccion(comando,cadenaSepParalel);
+                    else{
+                        conRedireccion(comando,cadenaSepParalel);
+                    }
                     //printf("comando en %s\n",cadenaSep[i]);
                 }
             }
@@ -247,8 +235,7 @@ void conRedireccion(char * input, char ** cadenaSep){
                     siguienteComando--;
                 }
             }
-        }else
-        {
+        }else{
             pathFichero = trasR[0];
             if(trasR[1]!=NULL){
                 int iterador =0;
@@ -288,7 +275,6 @@ void conRedireccion(char * input, char ** cadenaSep){
                 int test2 = 0;
                 test = dup2(fdout, STDOUT_FILENO);
                 test2 = dup2(fdout, STDERR_FILENO);
-                //test = fcntl(1, F_DUPFD, fdout);
                 if (test==-1 || test2==-1){
                     exit(1);
                 }
