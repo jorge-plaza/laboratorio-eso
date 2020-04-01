@@ -44,6 +44,7 @@ int main(int argc, char **argv){
         }
         do
         {
+            if(strcmp(input,salto)==0) continue;
             input[strcspn(input, "\n")]='\0';
             separarCadena(input, cadenaSep, "&");
             if ((int)*cadenaSep[0]==0 && (int)*cadenaSep[1]==0)
@@ -207,11 +208,11 @@ void sinRedireccion(char * input,char ** cadenaSep){
 }
 void conRedireccion(char * input, char ** cadenaSep){
     char error_message[30] = "An error has occurred\n";
-    if (cadenaSep[1][0]==10 || cadenaSep[1][0]==0){
+    if (cadenaSep[1][0]==10 || cadenaSep[1][0]==0 || cadenaSep[2]!=NULL){
         fprintf(stderr, "%s", error_message);
     }
     else{
-        char * trasR[NUMEROARG];
+        /* char * trasR[NUMEROARG];
         separarCadena(cadenaSep[1],trasR," ");
         char * pathFichero;
         char ** punteroSig = &trasR[2];
@@ -253,14 +254,48 @@ void conRedireccion(char * input, char ** cadenaSep){
                     siguienteComando--;
                 }
             }
+        } */
+        char *auxFichero = cadenaSep[1];
+        char **auxPath=(char**)malloc(sizeof(char)*100);
+        for (size_t i = 0; i < NUMEROARG; i++)
+        {
+            auxPath[i]=0;
         }
+        
+        separarCadena(auxFichero,auxPath," ");
+        int j=0;
+        while ((int)*auxPath[j]==0)
+        {
+            j++;
+        }
+        if (auxPath[j+1]!=NULL)
+        {
+            if ((int)*auxPath[j+1]!=0)
+            {
+                fprintf(stderr, "%s", error_message);
+                return;
+            }
+        }
+        
+        char * pathFichero;
+        pathFichero=auxPath[j];
+        
         //RemoveSpaces(pathFichero);
         strip(pathFichero);
         input = cadenaSep[0];
         separarCadena(input,cadenaSep," ");
+        if(numChar(cadenaSep)<2){
+            fprintf(stderr, "%s", error_message);
+            return;
+        }
         char * orden;
-        if((int)*cadenaSep[0]!=0){
-            orden = cadenaSep[0];
+        if((int)*cadenaSep[0]!=0 || (int)*cadenaSep[1]!=0){
+            if((int)*cadenaSep[0]!=0){
+                orden = cadenaSep[0];
+            }
+            else{
+                orden = cadenaSep[1];
+            }
             int numElementos = numChar(cadenaSep);
             cadenaSep[numElementos-1] = NULL;
             pid_t pid;
@@ -285,7 +320,7 @@ void conRedireccion(char * input, char ** cadenaSep){
                 int status;
                 while (wait(&status)!=pid){}
             }
-            if (*siguienteComando!=NULL)
+            /* if (*siguienteComando!=NULL)
             {
                 //TODO HACER BIEN EJECUTAR EL SIGUIENTE COMANDO
                 orden=*siguienteComando;
@@ -300,7 +335,7 @@ void conRedireccion(char * input, char ** cadenaSep){
                     int status;
                     wait(&status);
                 }
-            }
+            } */
         }
         else{
             fprintf(stderr, "%s", error_message);
