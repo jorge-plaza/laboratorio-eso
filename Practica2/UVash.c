@@ -79,10 +79,12 @@ int main(int argc, char **argv){
                     else{
                         conRedireccion(comando,cadenaSepParalel);
                     }
-                    //printf("comando en %s\n",cadenaSep[i]);
                 }
+                for (size_t i = 0; i < numComandos; i++)
+                {
+                    wait(NULL);
+                }  
             }
-            
         } while (getline(&input,&longitudEntrada,fr)!=-1);
         exit(0);
     }
@@ -315,11 +317,12 @@ void conRedireccion(char * input, char ** cadenaSep){
                 }
                 close(fdout);
                 execvp(orden,cadenaSep);
-                kill(getpid(),SIGTERM);
-            }else{
+                //kill(getpid(),SIGTERM);
+            }
+            /* else{
                 int status;
                 while (wait(&status)!=pid){}
-            }
+            } */
             /* if (*siguienteComando!=NULL)
             {
                 //TODO HACER BIEN EJECUTAR EL SIGUIENTE COMANDO
