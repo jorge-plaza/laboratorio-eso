@@ -7,22 +7,23 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdbool.h>
 
 #define NUMEROARG 10
 void RemoveSpaces(char* source);
 void separarCadena(char * input,char ** cadenaSep,char * delimitador);
 void sinRedireccion(char * input,char ** cadenaSep);
-void conRedireccion(char * input,char ** cadenaSep);
+void conRedireccion(char * input,char ** cadenaSep,bool paralelo);
 void strip(char *s);
 char * stripInicio(char *s);
 char * stripFin(char *s);
+char ** stripMedio(char *cadenaSep[]);
 int numChar(char *arr[]);
 
 int main(int argc, char **argv){
     size_t longitudEntrada = 50;
     char * input = (char *) malloc(sizeof(char)*longitudEntrada);
     char * salida = "exit";
-    char * cd = "cd";
     char *cadenaSep[NUMEROARG];
     char * salto = "\n";
     char error_message[30] = "An error has occurred\n";
@@ -59,7 +60,7 @@ int main(int argc, char **argv){
                 }
                 //HAY REDIRECCION
                 else{
-                    conRedireccion(input,cadenaSep);
+                    conRedireccion(input,cadenaSep,false);
                 }
             }
             //HAY COMANDO PARALELO
@@ -77,10 +78,10 @@ int main(int argc, char **argv){
                         sinRedireccion(comando,cadenaSepParalel);
                     }
                     else{
-                        conRedireccion(comando,cadenaSepParalel);
+                        conRedireccion(comando,cadenaSepParalel,true);
                     }
                 }
-                for (size_t i = 0; i < numComandos; i++)
+                for (i = 0; i < numComandos; i++)
                 {
                     wait(NULL);
                 }  
@@ -93,78 +94,49 @@ int main(int argc, char **argv){
     {
         printf("UVash> ");
         getline(&input,&longitudEntrada,stdin);//TODO mirar strcspn para quitar el final de linea
+        if(strcmp(input,salto)==0) continue;
         input[strcspn(input, "\n")]='\0';
-        separarCadena(input,cadenaSep,"&");
+        separarCadena(input, cadenaSep, "&");
+        if ((int)*cadenaSep[0]==0 && (int)*cadenaSep[1]==0)
+        {
+            fprintf(stderr, "%s", error_message);
+            continue;
+        }
         if(cadenaSep[1]==NULL){
-            //Tienes que crear un vector auxiliar ya que strsep() te modifica el vector que le pasas por agumentos
-            input=cadenaSep[0];
             separarCadena(input,cadenaSep,">");
-            if (cadenaSep[1]==NULL)
-            {
-                //Si no se ha introducido la redireccion hay que separar los argumetos
-                input = cadenaSep[0];
-                separarCadena(input,cadenaSep," ");
-                if (strcmp(cadenaSep[0],salto)){
-                    char * orden = cadenaSep[0];
-                    cadenaSep[strlen(*cadenaSep)]='\0';
-                    if(strcmp(orden,salida)==0) exit(0);
-                    if(strcmp(orden,cd)==0){
-                        char * destino = cadenaSep[1];
-                        if(chdir(destino)==0) continue;
-                        else fprintf(stderr, "%s", error_message);
-                    }
-                    else if (fork()==0)
-                    {
-                        execvp(orden,cadenaSep);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
-                        kill(getpid(),SIGTERM);
-                    }
-                    else
-                    {
-                        int status;
-                        wait(&status);
-                    }
-                }   
+            if (cadenaSep[1]==NULL){
+                sinRedireccion(input,cadenaSep);
             }
-            else
-            {
-                //Se ha encontrado la redireccion hay que guardar el fichero
-                char * pathFichero = cadenaSep[1];
-                RemoveSpaces(pathFichero);
-                input = cadenaSep[0];
-                separarCadena(input,cadenaSep," ");
-                char * orden = cadenaSep[0];
-                cadenaSep[strlen(*cadenaSep)]='\0';
-                //int fdout = open(pathFichero,O_WRONLY | O_CREAT | O_TRUNC, 0600);
-                FILE * fichero = fopen(pathFichero,"w");
-                int fdout = fileno(fichero);
-                switch (fork()) {
-                case -1:
-                        //error;
-                case 0:
-                    dup2(fdout, STDOUT_FILENO);
-                    dup2(fdout, STDERR_FILENO);
-                    fclose(fichero);
-                    execvp(orden,cadenaSep);
-                    kill(getpid(),SIGTERM);
-                    //TODO FALTARIA EL WAIT?
+            //HAY REDIRECCION
+            else{
+                conRedireccion(input,cadenaSep,false);
+            }
+        }
+        //HAY COMANDO PARALELO
+        else
+        {
+            int numComandos = numChar(cadenaSep);
+            int i;
+            char *comando=(char*)malloc(sizeof(char)*255);
+            char * cadenaSepParalel[NUMEROARG];
+            for(i=0;i<numComandos;i++){
+                strcpy(comando,cadenaSep[i]);
+                strcpy(input,cadenaSep[i]);
+                separarCadena(input,cadenaSepParalel,">");
+                if (cadenaSepParalel[1]==NULL){
+                    sinRedireccion(comando,cadenaSepParalel);
                 }
-            }        
+                else{
+                    conRedireccion(comando,cadenaSepParalel,true);
+                }
+            }
+            for (i = 0; i < numComandos; i++)
+            {
+                wait(NULL);
+            }  
         }
     } while (strcmp(salida,input));
     exit(0);
-}
-
-void RemoveSpaces(char* source)
-{
-  char* i = source;
-  char* j = source;
-  while(*j != 0)
-  {
-    *i = *j++;
-    if(*i != ' ')
-      i++;
-  }
-  *i = 0;
 }
 void separarCadena(char * input,char ** cadenaSep, char * delimitador){
     char * aux = input;
@@ -176,6 +148,7 @@ void sinRedireccion(char * input,char ** cadenaSep){
     char * salida = "exit";
     char error_message[30] = "An error has occurred\n";
     input[strcspn(input, "\n")]='\0';
+    input[strcspn(input, "\t")]='\0';
     input = stripInicio(input);
     input = stripFin(input);
     separarCadena(input,cadenaSep," ");
@@ -184,7 +157,7 @@ void sinRedireccion(char * input,char ** cadenaSep){
         if((int)*cadenaSep[0]!=0){
             char * orden = cadenaSep[0];
             int numElementos = numChar(cadenaSep);
-            //printf("elementos cadena: %d\n",numChar(cadenaSep));
+            cadenaSep=stripMedio(cadenaSep);
             cadenaSep[numElementos]='\0';
             if(strcmp(orden,salida)==0){
                 if(cadenaSep[1]!=NULL)fprintf(stderr, "%s", error_message);
@@ -197,7 +170,7 @@ void sinRedireccion(char * input,char ** cadenaSep){
             else if (fork()==0)
             {
                 execvp(orden,cadenaSep);
-                fprintf(stderr, "%s", error_message);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
+                fprintf(stderr, "%s", error_message);
                 kill(getpid(),SIGTERM);
             }
             else
@@ -208,55 +181,12 @@ void sinRedireccion(char * input,char ** cadenaSep){
         }
     }
 }
-void conRedireccion(char * input, char ** cadenaSep){
+void conRedireccion(char * input, char ** cadenaSep, bool paralelo){
     char error_message[30] = "An error has occurred\n";
     if (cadenaSep[1][0]==10 || cadenaSep[1][0]==0 || cadenaSep[2]!=NULL){
         fprintf(stderr, "%s", error_message);
     }
     else{
-        /* char * trasR[NUMEROARG];
-        separarCadena(cadenaSep[1],trasR," ");
-        char * pathFichero;
-        char ** punteroSig = &trasR[2];
-        char ** siguienteComando = (char**)malloc(sizeof(char)*NUMEROARG);
-        if (trasR[0][0]==0)//HAY UN ESPACIO DELANTE
-        {
-            pathFichero = trasR[1];
-            if(trasR[2]!=NULL){
-                int iterador =0;
-                while (*punteroSig!=NULL)
-                {
-                    *siguienteComando=*punteroSig;
-                    punteroSig++;
-                    siguienteComando++;
-                    iterador++;
-                }
-                for (size_t i = 0; i < iterador; i++)
-                {
-                    //DECREMENTO PUNTEROS PARA QUE APUNTEN AL INICIO
-                    punteroSig--;
-                    siguienteComando--;
-                }
-            }
-        }else{
-            pathFichero = trasR[0];
-            if(trasR[1]!=NULL){
-                int iterador =0;
-                while (*punteroSig!=NULL)
-                {
-                    *siguienteComando=*punteroSig;
-                    punteroSig++;
-                    siguienteComando++;
-                    iterador++;
-                }
-                for (size_t i = 0; i < iterador; i++)
-                {
-                    //DECREMENTO PUNTEROS PARA QUE APUNTEN AL INICIO
-                    punteroSig--;
-                    siguienteComando--;
-                }
-            }
-        } */
         char *auxFichero = cadenaSep[1];
         char **auxPath=(char**)malloc(sizeof(char)*100);
         for (size_t i = 0; i < NUMEROARG; i++)
@@ -278,11 +208,8 @@ void conRedireccion(char * input, char ** cadenaSep){
                 return;
             }
         }
-        
         char * pathFichero;
-        pathFichero=auxPath[j];
-        
-        //RemoveSpaces(pathFichero);
+        pathFichero=auxPath[j];        
         strip(pathFichero);
         input = cadenaSep[0];
         separarCadena(input,cadenaSep," ");
@@ -300,6 +227,10 @@ void conRedireccion(char * input, char ** cadenaSep){
             }
             int numElementos = numChar(cadenaSep);
             cadenaSep[numElementos-1] = NULL;
+            /* printf("cadenaSep 0 %s\n",cadenaSep[0]);
+            printf("cadenaSep 1 %s\n",cadenaSep[1]);
+            printf("cadenaSep 2 %s\n",cadenaSep[2]);
+            printf("pathFichero %s\n",pathFichero); */
             pid_t pid;
             if((pid = fork())<0){
                 fprintf(stderr, "%s", error_message);
@@ -317,33 +248,33 @@ void conRedireccion(char * input, char ** cadenaSep){
                 }
                 close(fdout);
                 execvp(orden,cadenaSep);
-                //kill(getpid(),SIGTERM);
             }
-            /* else{
-                int status;
-                while (wait(&status)!=pid){}
-            } */
-            /* if (*siguienteComando!=NULL)
+            else
             {
-                //TODO HACER BIEN EJECUTAR EL SIGUIENTE COMANDO
-                orden=*siguienteComando;
-                if (fork()==0)
+                if (!paralelo)
                 {
-                    execvp(orden,siguienteComando);
-                    fprintf(stderr, "%s", error_message);//solo devuelve algo si es un error, -1 y se guarda TODO MIRAR manual
-                    kill(getpid(),SIGTERM);
+                    wait(NULL);
                 }
-                else
-                {
-                    int status;
-                    wait(&status);
-                }
-            } */
+                
+            }
+            
         }
         else{
             fprintf(stderr, "%s", error_message);
         }
     }
+}
+void RemoveSpaces(char* source)
+{
+  char* i = source;
+  char* j = source;
+  while(*j != 0)
+  {
+    *i = *j++;
+    if(*i != ' ')
+      i++;
+  }
+  *i = 0;
 }
 void strip(char *s) {
     char *p2 = s;
@@ -357,16 +288,13 @@ void strip(char *s) {
     *p2 = '\0';
 }
 char * stripInicio(char *s){
-    //char *p2 = s;
     while(*s == ' ') {
         if(*s != '\t' && *s != ' ') {
-            //*p2++ = *s++;
         } else {
             ++s;
         }
     }
     return s;
-    //char *p2 = s;
 }
 char * stripFin(char *s){
     char * ps = strchr(s,'\0');
@@ -379,6 +307,29 @@ char * stripFin(char *s){
     ps+=1;
     *ps='\0';
     return s;
+}
+char ** stripMedio(char *cadenaSep[]){
+    int i,j;
+    bool limpio = false;
+    int numElementos = numChar(cadenaSep);
+    int contadorVacio;
+    while (!limpio)
+    {
+        contadorVacio=0;
+        for (i = 0; i < numElementos; i++){
+            if((int)*cadenaSep[i]==0 || (int)*cadenaSep[i]==1){
+                contadorVacio++;
+                for (j = i; j < numElementos-1; j++)
+                {
+                    cadenaSep[j]=cadenaSep[j+1];
+                }
+                cadenaSep[j]='\0';
+                numElementos--;
+            }
+        }
+        if(contadorVacio==0)limpio=true;
+    }
+    return cadenaSep;
 }
 int numChar(char *arr[]){
     int counter=0;
